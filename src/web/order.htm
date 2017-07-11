@@ -1,0 +1,465 @@
+<!DOCTYPE HTML>
+<html>
+	<head>
+		<script type="text/javascript" src="js/knockout-3.0.0.js"></script>
+		<script type="text/javascript" src="js/towords.js"></script>
+		<script type="text/javascript">
+			var companyModel = {
+				name: "My Company",
+				address: "My Company Address",
+				gstin: "GSTIN0101010101",
+				orderFreezed: ko.observable(false)
+			};
+
+			var bankDetailsModel = {
+				accountNo: ko.observable(""),
+				ifscCode: ko.observable(""),
+				orderFreezed: ko.observable(false)
+			};
+
+			var invoiceModel = {
+				invoiceno: ko.observable(100),
+				invoicedate: ko.observable("2014-02-20"),
+				purchaseno: ko.observable("100"),
+				state: "StateName",
+				stateCode: "StateCode",
+				vehicleNo: ko.observable(""),
+				orderFreezed: ko.observable(false)
+			};
+
+			var customerModel = {
+				address: ko.observable("Customer Address"),
+				gstin: ko.observable(""),
+				state: ko.observable("StateName"),
+				stateCode: ko.observable("StateCode"),
+				orderFreezed: ko.observable(false)
+			};
+
+			function orderItem() {
+				var self = this;
+
+				self.item = ko.observable("sp");
+				self.unitPrice = ko.observable(0);
+				self.quantity = ko.observable(0);
+				self.netValue = ko.computed(function() {
+						return ( (new Number(self.unitPrice())).toFixed(2) * (new Number(self.quantity())).toFixed(3) );
+					});
+				self.taxValue = ko.observable(0);
+				self.taxableValue = ko.computed({
+					read: function() {
+						var taxValue = ( (new Number(self.unitPrice())).toFixed(2) * (new Number(self.quantity())).toFixed(3) ).toFixed(2) ;
+						self.taxValue(taxValue);
+						return taxValue;
+					},
+					write: function(value) {
+							self.taxValue( ( new Number(value) ).toFixed(2) );
+					},
+					owner: self
+				});
+				self.cgstRate = ko.observable(0);
+				self.sgstRate = ko.observable(0);
+				self.cgstAmount = ko.computed(function() {
+						var cgstRatePercentage = (new Number(self.cgstRate())) / 100
+						var amount = ( (new Number(self.taxValue())).toFixed(2) * cgstRatePercentage.toFixed(3) )
+						return (new Number(amount)).toFixed(2);
+					});
+				self.sgstAmount = ko.computed(function() {
+						var sgstRatePercentage = (new Number(self.sgstRate())) / 100
+						var amount = ( (new Number(self.taxValue())).toFixed(2) * sgstRatePercentage.toFixed(3) )
+						return (new Number(amount)).toFixed(2);
+					});
+
+				self.totalAmount = ko.computed(function() {
+						return ( (new Number(self.taxValue())) + (new Number(self.cgstAmount())) + (new Number(self.sgstAmount())) ).toFixed(2);
+					});
+			}
+
+			function orderModel() {
+				var self = this;
+
+				self.orderItems = ko.observableArray([new orderItem()]);
+				self.orderFreezed = ko.observable(false);
+
+				self. addOrderItem = function () {
+					self.orderItems.push(new orderItem());
+				};
+
+				self.removeOrderItem = function() {
+					self.orderItems.remove(this);
+				};
+
+				self.totalNetValue = ko.dependentObservable(function() {
+					var total = 0;
+					ko.utils.arrayForEach(self.orderItems(), function(orderItem) {
+						total += (new Number(orderItem.netValue()));
+					});
+					return total.toFixed(2);
+				});
+
+				self.totalTaxValue = ko.dependentObservable(function() {
+					var total = 0;
+					ko.utils.arrayForEach(self.orderItems(), function(orderItem) {
+						total += (new Number(orderItem.taxValue()));
+					});
+					return total.toFixed(2);
+				});
+
+				self.totalCGSTAmount = ko.dependentObservable(function() {
+					var total = 0;
+					ko.utils.arrayForEach(self.orderItems(), function(orderItem) {
+						total += (new Number(orderItem.cgstAmount()));
+					});
+					return total.toFixed(2);
+				});
+
+				self.totalSGSTAmount = ko.dependentObservable(function() {
+					var total = 0;
+					ko.utils.arrayForEach(self.orderItems(), function(orderItem) {
+						total += (new Number(orderItem.sgstAmount()));
+					});
+					return total.toFixed(2);
+				});
+
+				self.totalGSTAmount = ko.dependentObservable(function() {
+					var total = 0;
+					ko.utils.arrayForEach(self.orderItems(), function(orderItem) {
+						total += (new Number(orderItem.cgstAmount())) + (new Number(orderItem.sgstAmount()));
+					});
+					return total.toFixed(2);
+				});
+
+				self.totalOrderAmount = ko.dependentObservable(function() {
+					var total = 0;
+					ko.utils.arrayForEach(self.orderItems(), function(orderItem) {
+						total += (new Number(orderItem.totalAmount()));
+					});
+					return total.toFixed(2);
+				});
+
+				self.totalOrderAmountInWords = ko.dependentObservable(function() {
+					var total = 0;
+					ko.utils.arrayForEach(self.orderItems(), function(orderItem) {
+						total += (new Number(orderItem.totalAmount()));
+					});
+					return toWords(total.toFixed(2));
+				});
+			}
+
+			var myOrderModel = new orderModel();
+
+			function initialize() {
+				ko.applyBindings( companyModel, document.getElementById("companyRegion") );
+				ko.applyBindings( invoiceModel, document.getElementById("invoiceRegion") );
+				ko.applyBindings( customerModel, document.getElementById("customerRegion") );
+				ko.applyBindings( myOrderModel, document.getElementById("orderRegion") );
+				ko.applyBindings( bankDetailsModel, document.getElementById("bankDetailsRegion") );
+			}
+
+			function submitOrder() {
+				companyModel.orderFreezed( !companyModel.orderFreezed() );
+				invoiceModel.orderFreezed( !invoiceModel.orderFreezed() );
+				customerModel.orderFreezed( !customerModel.orderFreezed() );
+				myOrderModel.orderFreezed( !myOrderModel.orderFreezed() );
+				bankDetailsModel.orderFreezed( !bankDetailsModel.orderFreezed() );
+				document.getElementById("submitButton").style.display = "none";
+			}
+		</script>
+	</head>
+	<body onload="initialize();">
+		<div style="width:100%">
+			<div id="companyRegion">
+				<div align="center">
+					<div><h1 style="margin-top: 6px;margin-bottom: 0px;" data-bind="text: name"></h1></div>
+					<div><span data-bind="text: address"></span></div>
+					<div>
+						<span><b>GSTIN: </b></span>
+						<span data-bind="text: gstin"></span>
+					</div>
+				</div>
+			</div>
+
+			<div id="invoiceRegion">
+				<table width="100%">
+					<tbody>
+						<tr>
+							<td>
+								<span>Invoice No. </span>
+								<span data-bind="visible: orderFreezed() == false"><input data-bind="value: invoiceno" size="50"></input></span>
+								<span data-bind="text: invoiceno, visible: orderFreezed() == true"></span>
+							</td>
+							<td align="right">
+								<span>Purchase order No. & Date: </span>
+								<span data-bind="visible: orderFreezed() == false"><input data-bind="value: purchaseno" size="50"></input></span>
+								<span data-bind="text: purchaseno, visible: orderFreezed() == true"></span>
+							</td>
+						</tr>
+						<tr>
+							<td>
+								<span>State: </span><span data-bind="text: state"></span>
+							</td>
+							<td align="right">
+								<span>Date: </span>
+								<span data-bind="visible: orderFreezed() == false"><input data-bind="value: invoicedate" size="50"></input></span>
+								<span data-bind="text: invoicedate, visible: orderFreezed() == true"></span>
+							</td>
+						</tr>
+						<tr>
+							<td>
+								<span>State Code: </span><span data-bind="text: stateCode"></span>
+							</td>
+							<td align="right">
+								<span>Vehicle No: </span>
+								<span data-bind="visible: orderFreezed() == false"><input data-bind="value: vehicleNo" size="50"></input></span>
+								<span data-bind="text: vehicleNo, visible: orderFreezed() == true"></span>
+							</td>
+						</tr>
+					</tbody>
+				</table>
+			</div>
+
+			<div id="customerRegion">
+				<div>
+					<span><b>Name & Address of Purchasing Dealer: </b></span>
+					<span data-bind="visible: orderFreezed() == false"><input data-bind="value: address" size="50" /></span>
+					<span data-bind="text: address, visible: orderFreezed() == true" style="word-wrap: break-word;"></span>
+				</div>
+				<div>
+					<span>
+						<span>GSTIN: </span>
+						<span data-bind="visible: orderFreezed() == false"><input data-bind="value: gstin" /></span>
+						<span data-bind="text: gstin, visible: orderFreezed() == true"></span>
+					</span>
+					<span style="float: right">
+						<span>State: </span>
+						<span data-bind="visible: orderFreezed() == false"><input data-bind="value: state" /></span>
+						<span data-bind="text: state, visible: orderFreezed() == true"></span>
+					</span>
+				</div>
+				<div>
+					<span style="float: right">
+						<span>State Code: </span>
+						<span data-bind="visible: orderFreezed() == false"><input data-bind="value: stateCode" /></span>
+						<span data-bind="text: stateCode, visible: orderFreezed() == true"></span>
+					</span>
+				</div>
+			</div>
+
+			<div id="orderRegion" style="margin-top: 10px;">
+				<div data-bind="visible: orderFreezed() == false">
+					<table width="100%">
+						<thead>
+							<th width="50%"></th>
+							<th width="20%" ><b>CGST</b></th>
+							<th width="15%" ><b>SGST</b></th>
+							<th>&nbsp;</th>
+						</thead>
+					</table>
+					<table width="100%">
+						<thead>
+							<th width="2%">No:</th>
+							<th width="15%">Name of the Product</th>
+							<th width="10%">Unit Price</th>
+							<th width="10%">Quantity</th>
+							<th width="10%">Amount</th>
+							<th width="10%">Taxable Value</th>
+							<th width="5%">Rate</th>
+							<th width="5%">Amount</th>
+							<th width="5%">Rate</th>
+							<th width="5%">Amount</th>
+							<th width="10%">Total</th>
+							<th width="8%">&nbsp;</th>
+						</thead>
+						<tbody data-bind="foreach: orderItems">
+							<tr>
+								<td data-bind="text: $index()+1"></td>
+								<td><input data-bind="value: item"></input></td>
+								<td><input data-bind="value: unitPrice"></input></td>
+								<td><input data-bind="value: quantity"></input></td>
+								<td><input data-bind="value: netValue"></input></td>
+								<td><input data-bind="value: taxableValue"></input></td>
+								<td><input data-bind="value: cgstRate"></input></td>
+								<td><input data-bind="value: cgstAmount"></input></td>
+								<td><input data-bind="value: sgstRate"></input></td>
+								<td><input data-bind="value: sgstAmount"></input></td>
+								<td><input data-bind="value: totalAmount"></input></td>
+								<td align="center"><a href="#" data-bind="click: $root.removeOrderItem">Delete (-)</a></td>
+							</tr>
+						</tbody>
+					</table>
+				</div>
+
+				<div data-bind="visible: orderFreezed() == true">
+					<table width="100%">
+						<thead>
+							<th width="67%"></th>
+							<th width="10%" ><b>CGST</b></th>
+							<th width="10%" ><b>SGST</b></th>
+							<th>&nbsp;</th>
+						</thead>
+					</table>
+					<table width="100%">
+						<thead>
+							<th width="2%" align="left">No:</th>
+							<th width="23%" align="left">Name of the Product</th>
+							<th width="10%" align="right">Unit Price</th>
+							<th width="10%" align="right">Quantity</th>
+							<th width="10%" align="right">Amount</th>
+							<th width="10%" align="right">Taxable Value</th>
+							<th width="5%" align="right">Rate</th>
+							<th width="5%" align="right">Amount</th>
+							<th width="5%" align="right">Rate</th>
+							<th width="5%" align="right">Amount</th>
+							<th width="15%" align="right">Total</th>
+						</thead>
+						<tbody data-bind="foreach: orderItems">
+							<tr>
+								<td data-bind="text: $index()+1"></td>
+								<td data-bind="text: item"></td>
+								<td align="right" data-bind="text: unitPrice"></td>
+								<td align="right" data-bind="text: quantity"></td>
+								<td align="right" data-bind="text: netValue"></td>
+								<td align="right" data-bind="text: taxValue"></td>
+								<td align="right" data-bind="text: cgstRate"></td>
+								<td align="right" data-bind="text: cgstAmount"></td>
+								<td align="right" data-bind="text: sgstRate"></td>
+								<td align="right" data-bind="text: sgstAmount"></td>
+								<td align="right" data-bind="text: totalAmount"></td>
+							</tr>
+						</tbody>
+					</table>
+				</div>
+
+				<table width="100%">
+					<tbody>
+						<tr>
+							<td width="25%" align="right">&nbsp;</td>
+							<td width="10%" align="right">&nbsp;</td>
+							<td width="10%" align="right">
+								<span><b>Total</b></span>
+							</td>
+							<td width="10%" align="right">
+								<span data-bind="text: totalNetValue"></span>
+							</td>
+							<td width="10%" align="right">
+								<span data-bind="text: totalTaxValue"></span>
+							</td>
+							<td width="10%" align="right">
+								<span data-bind="text: totalCGSTAmount"></span>
+							</td>
+							<td width="10%" align="right">
+								<span data-bind="text: totalSGSTAmount"></span>
+							</td>
+							<td width="15%" align="right">
+								<span data-bind="text: totalOrderAmount"></span>
+							</td>
+						</tr>
+					</tbody>
+				</table>
+
+				<table width="100%">
+					<tbody>
+						<tr>
+							<td width="55%" align="left">
+								<div contenteditable="true">
+									<span style="word-wrap: break-word;">
+										<b>
+											Total Amount (in words):
+											<span data-bind="text: totalOrderAmountInWords"></span>
+										</b>
+									</span>
+								</div>
+							</td>
+							<td>
+								<table width="100%">
+									<tbody align="right">
+										<tr>
+											<td width="80%">
+												<b>Total Amount Before Tax: </b>
+											</td>
+											<td>
+												<b><span data-bind="text: totalTaxValue"></span></b>
+											</td>
+										</tr>
+										<tr>
+											<td>
+												<b>CGST: </b>
+											</td>
+											<td>
+												<span data-bind="text: totalCGSTAmount"></span>
+											</td>
+										</tr>
+										<tr>
+											<td>
+												<b>SGST: </b>
+											</td>
+											<td>
+												<span data-bind="text: totalSGSTAmount"></span>
+											</td>
+										</tr>
+										<tr>
+											<td>
+												<b>Tax Amount: GST: </b>
+											</td>
+											<td>
+												<b><span data-bind="text: totalGSTAmount"></span></b>
+											</td>
+										</tr>
+										<tr>
+											<td>
+												<b>Tax Amount After Tax: </b>
+											</td>
+											<td>
+												<b><span data-bind="text: totalOrderAmount"></span></b>
+											</td>
+										</tr>
+									</tbody>
+								</table>
+							</td>
+						</tr>
+					</tbody>
+				</table>
+
+				<button data-bind="visible: orderFreezed() == false, click: addOrderItem">Add Item (+)</button>
+			</div>
+
+			<table width="100%">
+				<tbody>
+					<tr>
+						<td width="40%">
+							<div id="bankDetailsRegion">
+								<div>
+									<b>Bank Details</b>
+								</div>
+								<div>
+									<span>Bank Account Number: </span>
+									<span data-bind="visible: orderFreezed() == false"><input data-bind="value: accountNo" size="50"></input></span>
+									<b><span data-bind="text: accountNo, visible: orderFreezed() == true"></span></b>
+								</div>
+								<div>
+									<span>IFSC Code: </span>
+									<span data-bind="visible: orderFreezed() == false"><input data-bind="value: ifscCode" size="50"></input></span>
+									<b><span data-bind="text: ifscCode, visible: orderFreezed() == true"></span></b>
+								</div>
+							</div>
+						</td>
+						<td width="20%">
+							<h4 style="margin-bottom: 0px;">Common Seal</h4>
+						</td>
+						<td width="40%">
+							<div style="margin-top: 15px;">
+								<div align="center"><h4 style="margin-bottom: 0px;">DECLARATION</h4></div>
+								<div align="center"><span style="word-wrap: break-word;">Certified that all the particulars shown in the above Tax Invoice are true and correct.</span></div>
+								<br /><br />
+								<div align="right">Authorized Signatory</div>
+							</div>
+						</td>
+					</tr>
+				</tbody>
+			</table>
+
+			<div>
+				<button id="submitButton" onclick="submitOrder();">Submit</button>
+			</div>
+		</div>
+	</body>
+</html>
